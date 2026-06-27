@@ -1,0 +1,50 @@
+{
+  "name": "@monetizekit/embed",
+  "version": "0.1.0",
+  "description": "MonetizeKit vanilla-JS embed SDK for non-React apps — auto-renders pricing tables, paywalls, portals, and banners from data-mk-widget attributes. Ships an ESM/CJS module and a self-initializing IIFE (embed.js) for CDN <script> usage.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MonetizeKit/embed.git"
+  },
+  "type": "module",
+  "packageManager": "pnpm@10.33.2",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./embed.js": "./dist/embed.global.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "./dist/embed.global.js"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "check-entry": "node scripts/check-package-entry.mjs",
+    "smoke": "node scripts/install-smoke.mjs",
+    "changeset": "changeset",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.0",
+    "@eslint/js": "^9.20.0",
+    "eslint": "^9.20.0",
+    "tsup": "^8.3.6",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.0"
+  }
+}
