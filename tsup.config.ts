@@ -10,7 +10,7 @@ export default defineConfig([
     treeshake: true,
   },
   {
-    // Self-initializing CDN bundle: cdn.monetizekit.app/v1/embed.js
+    // Self-initializing CDN bundle: app.monetizekit.app/v1/embed.js
     entry: { embed: "src/embed.ts" },
     format: ["iife"],
     globalName: "MonetizeKitEmbed",
