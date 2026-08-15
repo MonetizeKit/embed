@@ -36,4 +36,4 @@ The package also exports the self-initializing CDN bundle at
 
 ## License
 
-MIT
+MIT © [Coordinated App LLC](https://monetizekit.com), d/b/a MonetizeKit. See [LICENSE](./LICENSE).
