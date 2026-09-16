@@ -10,7 +10,8 @@
           "title": "Required Checks Gate (push CI on the development head)",
           "loop": "CI",
           "type": "check-run",
-          "name": "Required Checks Gate"
+          "name": "Required Checks Gate",
+          "workflow": ".github/workflows/ci.yml"
         }
       ]
     },
@@ -22,7 +23,8 @@
           "title": "Required Checks Gate (push CI on the delivery head)",
           "loop": "CI",
           "type": "check-run",
-          "name": "Required Checks Gate"
+          "name": "Required Checks Gate",
+          "workflow": ".github/workflows/ci.yml"
         }
       ]
     }
