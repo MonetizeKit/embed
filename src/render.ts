@@ -83,6 +83,73 @@ export function log(msg: string): void {
   console.log(`[MonetizeKit Embed v${MK_VERSION}]`, msg);
 }
 
+/**
+ * Activation-funnel instrumentation (overview-dashboard FRD OVR-21).
+ *
+ * Fires `widget_view` when a pricing table mounts and `checkout_started` when
+ * its upgrade/CTA button is clicked, posting to `{baseUrl}/api/v1/events/funnel`
+ * with the publishable key already used for `fetchPlans`. `navigator.sendBeacon`
+ * cannot set the `Authorization` header the endpoint requires, so this uses
+ * `fetch(..., { keepalive: true })` instead (the plan's documented fallback) —
+ * fire-and-forget, and never throws or blocks widget rendering.
+ */
+const FUNNEL_EVENTS_PATH = "/api/v1/events/funnel";
+const SESSION_STORAGE_KEY = "mk_session_id";
+
+function generateSessionId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `mk_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+let inMemorySessionId: string | null = null;
+
+/**
+ * A stable per-browser anonymous id correlating `widget_view` →
+ * `checkout_started` → (server-side) `activated`. Persisted in
+ * `localStorage` so it survives across page loads on the same site; falls
+ * back to an in-memory id (fresh per widget mount) when storage throws
+ * (privacy mode, sandboxed iframe) rather than breaking the widget.
+ */
+function getOrCreateSessionId(): string {
+  try {
+    const existing = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    if (existing) return existing;
+    const created = generateSessionId();
+    window.localStorage.setItem(SESSION_STORAGE_KEY, created);
+    return created;
+  } catch {
+    if (!inMemorySessionId) inMemorySessionId = generateSessionId();
+    return inMemorySessionId;
+  }
+}
+
+function postFunnelEvent(
+  baseUrl: string,
+  apiKey: string,
+  event: "widget_view" | "checkout_started",
+  planId?: string,
+): void {
+  try {
+    const body = JSON.stringify({
+      event,
+      sessionId: getOrCreateSessionId(),
+      ...(planId ? { planId } : {}),
+    });
+    void fetch(`${baseUrl}${FUNNEL_EVENTS_PATH}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body,
+      keepalive: true,
+    }).catch(() => {
+      // Fire-and-forget: a failed beacon must never surface to the widget.
+    });
+  } catch {
+    // Defensive: some sandboxed/legacy environments throw synchronously on fetch construction.
+  }
+}
+
 function getBaseUrl(element: HTMLElement): string {
   return (
     element.getAttribute(MK_BASE_URL_ATTR) ||
@@ -128,8 +195,8 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function renderPricingTable(config: WidgetConfig, plans: PlanData[]) {
-  const { element, options } = config;
+function renderPricingTable(config: WidgetConfig, plans: PlanData[], baseUrl: string) {
+  const { element, options, key } = config;
   const highlight = options.highlight ?? "";
   const billing = options.billing ?? "monthly";
 
@@ -165,7 +232,7 @@ function renderPricingTable(config: WidgetConfig, plans: PlanData[]) {
         ${price > 0 ? `<span style="font-size:14px;color:${muted}">${interval}</span>` : ""}
       </div>
       ${plan.trialDays ? `<div style="font-size:12px;color:${accent};margin-bottom:12px">${plan.trialDays}-day free trial</div>` : ""}
-      <button style="width:100%;padding:10px;border-radius:${t.radius};border:none;background:${isHighlighted ? t.primary : border};color:${isHighlighted ? t.primaryFg : text};font-weight:600;cursor:pointer;font-size:14px;margin-bottom:16px">
+      <button data-mk-cta="${price > 0 ? "checkout" : "free"}" data-mk-plan-id="${escapeHtml(plan.id)}" style="width:100%;padding:10px;border-radius:${t.radius};border:none;background:${isHighlighted ? t.primary : border};color:${isHighlighted ? t.primaryFg : text};font-weight:600;cursor:pointer;font-size:14px;margin-bottom:16px">
         ${price === 0 ? "Get Started" : plan.trialDays ? `Start ${plan.trialDays}-day trial` : "Upgrade"}
       </button>
       <div style="border-top:1px solid ${border};padding-top:12px">
@@ -181,6 +248,16 @@ function renderPricingTable(config: WidgetConfig, plans: PlanData[]) {
     </div>
   </div>`;
   element.setAttribute("data-mk-rendered", "true");
+
+  // OVR-21: the pricing table just mounted — this is the funnel's top of
+  // stage. Only a paid-plan CTA (`data-mk-cta="checkout"`) counts as
+  // `checkout_started`; the free-plan "Get Started" button isn't a checkout.
+  postFunnelEvent(baseUrl, key, "widget_view");
+  element.querySelectorAll<HTMLButtonElement>('[data-mk-cta="checkout"]').forEach((button) => {
+    button.addEventListener("click", () => {
+      postFunnelEvent(baseUrl, key, "checkout_started", button.getAttribute("data-mk-plan-id") ?? undefined);
+    });
+  });
 }
 
 function renderPaywall(config: WidgetConfig) {
@@ -244,7 +321,7 @@ export async function initWidget(config: WidgetConfig): Promise<void> {
   switch (config.widget) {
     case "pricing-table": {
       const plans = await fetchPlans(baseUrl, config.key);
-      renderPricingTable(config, plans);
+      renderPricingTable(config, plans, baseUrl);
       break;
     }
     case "paywall":
