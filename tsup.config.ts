@@ -19,7 +19,7 @@ export default defineConfig([
     clean: false,
     treeshake: true,
     banner: {
-      js: "/*! @monetizekit/embed | (c) 2026 Coordinated App LLC, d/b/a MonetizeKit | MIT License */",
+      js: "/*! @monetizekit/embed | (c) 2026 Coordinated App LLC, d/b/a MonetizeKit | Apache-2.0 License */",
     },
   },
 ]);
