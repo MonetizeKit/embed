@@ -1,6 +1,6 @@
 {
   "name": "@monetizekit/embed",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MonetizeKit vanilla-JS embed SDK for non-React apps — auto-renders pricing tables, paywalls, portals, and banners from data-mk-widget attributes. Ships an ESM/CJS module and a self-initializing IIFE (embed.js) for CDN <script> usage.",
   "license": "Apache-2.0",
   "repository": {
